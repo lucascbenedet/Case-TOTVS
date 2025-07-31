@@ -2,6 +2,7 @@ package com.totvs.core.service;
 
 import com.totvs.core.domain.User.*;
 import com.totvs.core.dto.User.*;
+import com.totvs.core.exceptions.DuplicateEmailException;
 import com.totvs.core.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -18,14 +19,19 @@ public class UserService {
 
     @Transactional
     public User createUser(CreateUserRequest data) {
-        User newUser = new User();
 
+        if (userRepository.existsByEmail(data.email())) {
+            throw new DuplicateEmailException(data.email());
+        };
+
+        User newUser = new User();
         newUser.setEmail(data.email());
         newUser.setName(data.name());
         return userRepository.save(newUser);
     }
 
-    public User getUserById(UUID id) {
-        return userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("User not found"));
+    public ListUserResponse getUserById(UUID id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("User not found"));
+        return new ListUserResponse(user.getId(), user.getName(), user.getEmail());
     }
 }

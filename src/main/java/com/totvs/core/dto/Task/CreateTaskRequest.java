@@ -9,7 +9,6 @@ import java.util.UUID;
 public record CreateTaskRequest(
         @NotBlank(message = "Title is required") String title,
         String description,
-        TaskStatus status,
-        @NotBlank @NotNull(message = "User id is required") UUID user
+        @NotNull(message = "User id is required") UUID user
 )
 { }

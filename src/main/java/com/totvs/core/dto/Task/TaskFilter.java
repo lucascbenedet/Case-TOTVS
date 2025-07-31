@@ -5,10 +5,9 @@ import com.totvs.core.domain.enums.TaskStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record TaskFIlter(
+public record TaskFilter(
         TaskStatus status,
         UUID user,
         LocalDateTime createdAfter,
-        LocalDateTime createdBefore,
-        String descriptionContains
+        LocalDateTime createdBefore
 ){}

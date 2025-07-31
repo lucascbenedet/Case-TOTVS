@@ -4,6 +4,7 @@ import com.totvs.core.domain.Task.Task;
 import com.totvs.core.domain.User.User;
 import com.totvs.core.domain.enums.TaskStatus;
 import com.totvs.core.dto.Task.*;
+import com.totvs.core.dto.Task.ListTasksResponse;
 import com.totvs.core.repository.TaskRepository;
 import com.totvs.core.repository.UserRepository;
 import com.totvs.core.repository.SubTaskRepository;
@@ -29,18 +30,32 @@ public class TaskService {
     private SubTaskRepository subTaskRepository;
 
 
-    public List<Task> findFilteredTasks(TaskFIlter taskFIlter) {
-        Specification<Task> spec = Specification.unrestricted();
-        spec = spec.and(TaskSpecification.hasUser(taskFIlter.user()))
-                        .and(TaskSpecification.createdAfter(taskFIlter.createdAfter()))
-                        .and(TaskSpecification.createdBefore(taskFIlter.createdBefore()))
-                        .and(TaskSpecification.byStatus(taskFIlter.status()));
-        return taskRepository.findAll(spec);
+    public List<ListTasksResponse> listFilteredTasks(TaskFilter taskFilter) {
+        Specification<Task> spec = TaskSpecification.hasUser(taskFilter.user())
+                        .and(TaskSpecification.createdAfter(taskFilter.createdAfter()))
+                        .and(TaskSpecification.createdBefore(taskFilter.createdBefore()))
+                        .and(TaskSpecification.byStatus(taskFilter.status()));
+        return taskRepository.findAll(spec).stream()
+                .map(task -> new ListTasksResponse(
+                        task.getId(),
+                        task.getTitle(),
+                        task.getDescription(),
+                        task.getCreatedAt(),
+                        task.getEndedAt(),
+                        task.getStatus(),
+                        task.getUser().getId()
+//                        new RetrieveUser(
+//                                task.getUser().getId(),
+//                                task.getUser().getName(),
+//                                task.getUser().getEmail())
+                        )
+                ).toList();
+
     }
 
 
     @Transactional
-    public Task createTask(CreateTaskRequest data) {
+    public CreateTaskResponse createTask(CreateTaskRequest data) {
         User user = userRepository.findById(data.user()).orElseThrow(() -> new EntityNotFoundException("User not found"));
         Task newTask = new Task();
 
@@ -48,25 +63,39 @@ public class TaskService {
         newTask.setDescription(data.description());
         newTask.setUser(user);
 
-        return taskRepository.save(newTask);
+
+        Task saved = taskRepository.save(newTask);
+        return new CreateTaskResponse(
+                saved.getId(),
+                saved.getTitle(),
+                saved.getDescription(),
+                saved.getCreatedAt(),
+                saved.getEndedAt(),
+                saved.getStatus(),
+                saved.getUser().getId()
+        );
 
     }
     @Transactional
-    public Task updateTask(UUID id, UpdateTaskRequest data) {
+    public CreateTaskResponse updateTask(UUID id, UpdateTaskRequest data) {
         Task task = taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found"));
 
         data.title().ifPresent(task::setTitle);
         data.description().ifPresent(task::setDescription);
-        data.user()
-                .filter(uid -> !uid.equals(task.getUser().getId()))
-                .map(userRepository::findById).orElseThrow(() -> new EntityNotFoundException("User not found"))
-                .ifPresent(task::setUser);
+        data.user().ifPresent(uid ->
+        {
+            if (!uid.equals(task.getUser().getId())) {
+                User newUser = userRepository.findById(uid).orElseThrow(() -> new EntityNotFoundException("User not found"));
+                task.setUser(newUser);
+            }
+
+        });
 
         data.status().ifPresent(newStatus -> {
             if (newStatus == TaskStatus.COMPLETED) {
                 long pendingSubTasks = subTaskRepository.countByTask_IdAndStatusNot(task.getId(),TaskStatus.COMPLETED);
                 if (pendingSubTasks > 0) {
-                    throw new IllegalStateException("Task status can not be changed to COMPLETED. Task has" + pendingSubTasks + " sub tasks.");
+                    throw new IllegalStateException("Task status can not be changed to COMPLETED. Task has " + pendingSubTasks + " sub tasks pending.");
                 }
                 task.setEndedAt(LocalDateTime.now());
 
@@ -76,7 +105,20 @@ public class TaskService {
 
         });
 
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return new CreateTaskResponse(
+                updatedTask.getId(),
+                updatedTask.getTitle(),
+                updatedTask.getDescription(),
+                updatedTask.getCreatedAt(),
+                updatedTask.getEndedAt(),
+                updatedTask.getStatus(),
+                updatedTask.getUser().getId()
+//                new ListUserResponse(
+//                        updatedTask.getUser().getId(),
+//                        updatedTask.getUser().getName(),
+//                        updatedTask.getUser().getEmail())
+               );
 
 
     }
