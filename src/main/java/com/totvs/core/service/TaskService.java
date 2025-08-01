@@ -4,19 +4,21 @@ import com.totvs.core.domain.Task.Task;
 import com.totvs.core.domain.User.User;
 import com.totvs.core.domain.enums.TaskStatus;
 import com.totvs.core.dto.Task.*;
-import com.totvs.core.dto.Task.ListTasksResponse;
+import com.totvs.core.dto.Task.TaskResponseDTO;
+import com.totvs.core.mappers.TaskMapper;
 import com.totvs.core.repository.TaskRepository;
-import com.totvs.core.repository.UserRepository;
 import com.totvs.core.repository.SubTaskRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import com.totvs.core.specification.TaskSpecification;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -25,38 +27,26 @@ public class TaskService {
     @Autowired
     private TaskRepository taskRepository;
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
     private SubTaskRepository subTaskRepository;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private TaskMapper taskMapper;
 
 
-    public List<ListTasksResponse> listFilteredTasks(TaskFilter taskFilter) {
+    public Page<TaskResponseDTO> listFilteredTasks(TaskFilter taskFilter, Pageable pageable) {
         Specification<Task> spec = TaskSpecification.hasUser(taskFilter.user())
                         .and(TaskSpecification.createdAfter(taskFilter.createdAfter()))
                         .and(TaskSpecification.createdBefore(taskFilter.createdBefore()))
                         .and(TaskSpecification.byStatus(taskFilter.status()));
-        return taskRepository.findAll(spec).stream()
-                .map(task -> new ListTasksResponse(
-                        task.getId(),
-                        task.getTitle(),
-                        task.getDescription(),
-                        task.getCreatedAt(),
-                        task.getEndedAt(),
-                        task.getStatus(),
-                        task.getUser().getId()
-//                        new RetrieveUser(
-//                                task.getUser().getId(),
-//                                task.getUser().getName(),
-//                                task.getUser().getEmail())
-                        )
-                ).toList();
-
+        return this.taskRepository.findAll(spec, pageable)
+                .map(task ->  this.taskMapper.toTaskResponseDTO(task));
     }
 
 
     @Transactional
-    public CreateTaskResponse createTask(CreateTaskRequest data) {
-        User user = userRepository.findById(data.user()).orElseThrow(() -> new EntityNotFoundException("User not found"));
+    public TaskResponseDTO createTask(CreateTaskDTO data) {
+        User user = this.userService.findById(data.user());
         Task newTask = new Task();
 
         newTask.setTitle(data.title());
@@ -64,28 +54,20 @@ public class TaskService {
         newTask.setUser(user);
 
 
-        Task saved = taskRepository.save(newTask);
-        return new CreateTaskResponse(
-                saved.getId(),
-                saved.getTitle(),
-                saved.getDescription(),
-                saved.getCreatedAt(),
-                saved.getEndedAt(),
-                saved.getStatus(),
-                saved.getUser().getId()
-        );
+        Task saved = this.taskRepository.save(newTask);
+        return this.taskMapper.toTaskResponseDTO(saved);
 
     }
     @Transactional
-    public CreateTaskResponse updateTask(UUID id, UpdateTaskRequest data) {
-        Task task = taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found"));
+    public TaskResponseDTO updateTask(UUID id, UpdateTaskDTO data) {
+        Task task = this.findById(id);
 
         data.title().ifPresent(task::setTitle);
         data.description().ifPresent(task::setDescription);
         data.user().ifPresent(uid ->
         {
             if (!uid.equals(task.getUser().getId())) {
-                User newUser = userRepository.findById(uid).orElseThrow(() -> new EntityNotFoundException("User not found"));
+                User newUser = this.userService.findById(uid);
                 task.setUser(newUser);
             }
 
@@ -93,9 +75,8 @@ public class TaskService {
 
         data.status().ifPresent(newStatus -> {
             if (newStatus == TaskStatus.COMPLETED) {
-                long pendingSubTasks = subTaskRepository.countByTask_IdAndStatusNot(task.getId(),TaskStatus.COMPLETED);
-                if (pendingSubTasks > 0) {
-                    throw new IllegalStateException("Task status can not be changed to COMPLETED. Task has " + pendingSubTasks + " sub tasks pending.");
+                if (this.hasPendingSubTasks(task.getId())) {
+                    throw new IllegalStateException("Task status can not be changed to COMPLETED because has pending sub-tasks");
                 }
                 task.setEndedAt(LocalDateTime.now());
 
@@ -105,22 +86,31 @@ public class TaskService {
 
         });
 
-        Task updatedTask = taskRepository.save(task);
-        return new CreateTaskResponse(
-                updatedTask.getId(),
-                updatedTask.getTitle(),
-                updatedTask.getDescription(),
-                updatedTask.getCreatedAt(),
-                updatedTask.getEndedAt(),
-                updatedTask.getStatus(),
-                updatedTask.getUser().getId()
-//                new ListUserResponse(
-//                        updatedTask.getUser().getId(),
-//                        updatedTask.getUser().getName(),
-//                        updatedTask.getUser().getEmail())
-               );
+        Task updatedTask = this.taskRepository.save(task);
+        return this.taskMapper.toTaskResponseDTO(updatedTask);
 
 
+    }
+
+    @Transactional
+    public TaskResponseDTO updateTaskStatus(UUID id, TaskStatus status) {
+        UpdateTaskDTO taskDTO = new UpdateTaskDTO(
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(status),
+                Optional.empty()
+        );
+        return this.updateTask(id, taskDTO);
+    }
+
+    public Boolean hasPendingSubTasks(UUID taskId) {
+        long pendingSubTasks = this.subTaskRepository.countByTask_IdAndStatusNot(taskId,TaskStatus.COMPLETED);
+        return pendingSubTasks > 0;
+
+    }
+
+    public Task findById(UUID id) {
+        return this.taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found"));
     }
 
 }

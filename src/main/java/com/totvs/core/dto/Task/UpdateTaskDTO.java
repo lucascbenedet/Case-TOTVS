@@ -5,7 +5,7 @@ import com.totvs.core.domain.enums.TaskStatus;
 import java.util.Optional;
 import java.util.UUID;
 
-public record UpdateTaskRequest(
+public record UpdateTaskDTO(
         Optional<String> title,
         Optional<String> description,
         Optional<TaskStatus> status,

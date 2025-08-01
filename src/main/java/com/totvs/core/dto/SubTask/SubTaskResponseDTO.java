@@ -1,15 +1,15 @@
-package com.totvs.core.dto.Task;
+package com.totvs.core.dto.SubTask;
 
 import com.totvs.core.domain.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record CreateTaskResponse(UUID id,
+public record SubTaskResponseDTO(UUID id,
                                  String title,
                                  String description,
                                  LocalDateTime createdAt,
                                  LocalDateTime endedAt,
                                  TaskStatus status,
-                                 UUID user) {
+                                 UUID taskId) {
 }

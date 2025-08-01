@@ -1,9 +1,10 @@
 package com.totvs.core.controller;
 
-import com.totvs.core.dto.SubTask.CreateSubTaskRequest;
-import com.totvs.core.dto.SubTask.CreateSubTaskResponse;
-import com.totvs.core.dto.SubTask.UpdateSubTaskRequest;
+import com.totvs.core.dto.SubTask.CreateSubTaskDTO;
+import com.totvs.core.dto.SubTask.SubTaskResponseDTO;
+import com.totvs.core.dto.SubTask.UpdateSubTaskStatusDTO;
 import com.totvs.core.service.SubTaskService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,20 +14,21 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/subtask")
+@Tag(name = "SubTask Endpoints")
 class SubTaskController {
 
     @Autowired
     SubTaskService subTaskService;
 
     @PostMapping()
-    public ResponseEntity<CreateSubTaskResponse> createSubTask(@RequestBody @Valid CreateSubTaskRequest data) {
-        CreateSubTaskResponse newSubTask = subTaskService.createSubTask(data);
+    public ResponseEntity<SubTaskResponseDTO> createSubTask(@RequestBody @Valid CreateSubTaskDTO data) {
+        SubTaskResponseDTO newSubTask = subTaskService.createSubTask(data);
         return ResponseEntity.ok(newSubTask);
     }
 
-    @PatchMapping("/{subTaskId}")
-    public ResponseEntity<CreateSubTaskResponse> updateSubTask(@PathVariable UUID subTaskId, @RequestBody @Valid UpdateSubTaskRequest data) {
-        CreateSubTaskResponse subTask = subTaskService.updateTask(subTaskId, data);
+    @PatchMapping("/{subTaskId}/status")
+    public ResponseEntity<SubTaskResponseDTO> updateSubTaskStatus(@PathVariable UUID subTaskId, @RequestBody @Valid UpdateSubTaskStatusDTO data) {
+        SubTaskResponseDTO subTask = subTaskService.updateSubTaskStatus(subTaskId, data.status());
         return ResponseEntity.ok(subTask);
     }
 
