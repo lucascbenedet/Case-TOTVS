@@ -31,6 +31,8 @@ public class SubTaskService {
 
     @Autowired
     private SubTaskMapper subTaskMapper;
+    @Autowired
+    private TaskService taskService;
 
     public Page<SubTaskResponseDTO> getSubTasksByTaskId(UUID taskId, Pageable pageable) {
         Page<SubTask> subTasks = subTaskRepository.findByTask_Id(taskId, pageable);
@@ -59,7 +61,7 @@ public class SubTaskService {
         data.task().ifPresent(uid ->
         {
             if (!uid.equals(subTask.getTask().getId())) {
-                Task newTask = taskRepository.findById(uid).orElseThrow(() -> new EntityNotFoundException("Task not found"));
+                Task newTask = taskService.findById(uid);
                 subTask.setTask(newTask);
             }
 

@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Getter
 @Setter
@@ -41,4 +42,10 @@ public class Task {
     @ManyToOne(fetch = FetchType.LAZY, optional = false )
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public Boolean hasPendingSubTasks(Supplier<Long> getPendingSubTasksCount) {
+        long count = getPendingSubTasksCount.get();
+        return count > 0;
+
+    }
 }

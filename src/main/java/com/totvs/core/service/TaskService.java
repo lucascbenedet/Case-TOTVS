@@ -75,7 +75,8 @@ public class TaskService {
 
         data.status().ifPresent(newStatus -> {
             if (newStatus == TaskStatus.COMPLETED) {
-                if (this.hasPendingSubTasks(task.getId())) {
+                if(task.hasPendingSubTasks(() ->
+                        subTaskRepository.countByTask_IdAndStatusNot(task.getId(),TaskStatus.COMPLETED))) {
                     throw new IllegalStateException("Task status can not be changed to COMPLETED because has pending sub-tasks");
                 }
                 task.setEndedAt(LocalDateTime.now());
@@ -103,11 +104,6 @@ public class TaskService {
         return this.updateTask(id, taskDTO);
     }
 
-    public Boolean hasPendingSubTasks(UUID taskId) {
-        long pendingSubTasks = this.subTaskRepository.countByTask_IdAndStatusNot(taskId,TaskStatus.COMPLETED);
-        return pendingSubTasks > 0;
-
-    }
 
     public Task findById(UUID id) {
         return this.taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found"));
