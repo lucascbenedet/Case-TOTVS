@@ -5,6 +5,7 @@ import com.totvs.core.dto.SubTask.SubTaskResponseDTO;
 import com.totvs.core.dto.Task.*;
 import com.totvs.core.service.SubTaskService;
 import com.totvs.core.service.TaskService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/task")
-@Tag(name = "Tasks", description = "Task endpoints")
+@Tag(name = "Task")
 class TaskController {
 
     @Autowired
@@ -28,6 +29,9 @@ class TaskController {
     @Autowired
     SubTaskService subTaskService;
 
+    @Operation(
+            summary = "Cria nova task"
+    )
     @PostMapping()
     public ResponseEntity<TaskResponseDTO> createTask(@RequestBody @Valid CreateTaskDTO data) {
         TaskResponseDTO newTask =  taskService.createTask(data);
@@ -35,12 +39,18 @@ class TaskController {
 
     }
 
+    @Operation(
+            summary = "Atualiza o status de uma task"
+    )
     @PatchMapping("/{taskId}/status")
     public ResponseEntity<TaskResponseDTO> updateTaskStatus(@PathVariable UUID taskId, @RequestBody @Valid UpdateTaskStatusDTO data) {
         TaskResponseDTO task = taskService.updateTaskStatus(taskId, data.status());
         return ResponseEntity.ok(task);
     }
 
+    @Operation(
+            summary = "Retorna todas as tasks"
+    )
     @GetMapping()
     public Page<TaskResponseDTO> getTasks(@PageableDefault() Pageable pageable,
                                           @RequestParam(required = false) UUID userId,
@@ -57,6 +67,9 @@ class TaskController {
 
         return taskService.listFilteredTasks(filter, pageable);
     }
+    @Operation(
+            summary = "Retorna todas as sub-tasks de uma task específica"
+    )
     @GetMapping("/{taskId}/subtasks")
     public Page<SubTaskResponseDTO> getSubTasksByTaskId(
             @PageableDefault() Pageable pageable,
